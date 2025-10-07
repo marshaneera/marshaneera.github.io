@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Web3 EIP-712 Sign (Mail: "test")</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:40px;background:#f7f8fb}
+    .card{background:#fff;padding:20px;border-radius:12px;box-shadow:0 6px 18px rgba(20,20,40,0.06);max-width:640px;margin:0 auto}
+    button{padding:10px 14px;border-radius:8px;border:0;background:#2563eb;color:white;font-weight:600;cursor:pointer;margin-right:8px}
+    button.secondary{background:#111827}
+    pre{background:#0b1220;color:#dbeafe;padding:12px;border-radius:8px;overflow:auto}
+    .small{font-size:13px;color:#6b7280}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Web3 EIP-712 Sign — PrimaryType: <em>Mail</em></h2>
+    <p class="small">Message contents = "test". Destination wallet (to) = <code>0x5fbdb2315678afecb367f032d93f642f64180aa3</code></p>
+
+    <div style="margin-top:16px">
+      <button id="connect">Connect Wallet</button>
+      <button id="sign" class="secondary">Sign Typed Data (EIP-712)</button>
+    </div>
+
+    <h3 style="margin-top:18px">Result</h3>
+    <pre id="result">(no action yet)</pre>
+  </div>
+
+  <script>
+    const DEST = '0x5fbdb2315678afecb367f032d93f642f64180aa3';
+    const providerAvailable = () => !!window.ethereum;
+
+    const el = id => document.getElementById(id);
+    const setRes = v => el('result').textContent = v;
+
+    async function connect() {
+      if (!providerAvailable()) return setRes('No injected web3 provider found (Metamask).');
+      try {
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        setRes('Connected: ' + accounts[0]);
+        return accounts[0];
+      } catch (err) {
+        setRes('User rejected or error: ' + err.message);
+      }
+    }
+
+    // Build EIP-712 payload for primaryType "Mail" with single field contents="test" and to=DEST
+    function buildTypedData(chainId, from) {
+      const domain = {
+        name: 'Example DApp',
+        version: '1',
+        chainId: chainId,
+        verifyingContract: '0x5fbdb2315678afecb367f032d93f642f64180aa3'
+      };
+
+      const types = {
+        EIP712Domain: [
+          { name: 'name', type: 'string' },
+          { name: 'version', type: 'string' },
+          { name: 'chainId', type: 'uint256' },
+          { name: 'verifyingContract', type: 'address' }
+        ],
+        Mail: [
+          { name: 'to', type: 'address' },
+          { name: 'contents', type: 'string' }
+        ]
+      };
+
+      const message = {
+        to: DEST,
+        contents: 'test'
+      };
+
+      return {
+        types,
+        domain,
+        primaryType: 'Mail',
+        message
+      };
+    }
+
+    async function signTypedData() {
+      if (!providerAvailable()) return setRes('No injected web3 provider found (Metamask).');
+      try {
+        // ensure connected
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        const from = accounts[0];
+
+        // get chainId
+        const chainIdHex = await window.ethereum.request({ method: 'eth_chainId' });
+        const chainId = parseInt(chainIdHex, 16);
+
+        const typedData = buildTypedData(chainId, from);
+        const dataStr = JSON.stringify(typedData);
+
+        // eth_signTypedData_v4 is widely supported (MetaMask)
+        const params = [from, dataStr];
+        const method = 'eth_signTypedData_v4';
+
+        setRes('Opening wallet signature dialog...');
+        const sig = await window.ethereum.request({ method, params });
+
+        setRes('Signature result:\n' + sig);
+      } catch (err) {
+        setRes('Error during signing: ' + (err && err.message ? err.message : String(err)));
+      }
+    }
+
+    el('connect').addEventListener('click', connect);
+    el('sign').addEventListener('click', signTypedData);
+
+    // friendly hint if no provider
+    if (!providerAvailable()) setRes('No web3 provider detected. Install MetaMask or another provider and reload.');
+  </script>
+</body>
+</html>
