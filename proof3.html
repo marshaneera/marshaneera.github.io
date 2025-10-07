@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Batch Sign In With Ethereum</title>
+  <style>
+    body {
+      background: #111;
+      color: #eee;
+      font-family: sans-serif;
+      text-align: center;
+      padding: 40px;
+    }
+    button {
+      padding: 12px 24px;
+      font-size: 18px;
+      margin-top: 20px;
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      background: #00b894;
+      color: #fff;
+      transition: background 0.2s ease;
+    }
+    button:hover {
+      background: #019870;
+    }
+    pre {
+      margin-top: 20px;
+      text-align: left;
+      background: #222;
+      padding: 15px;
+      border-radius: 8px;
+      word-wrap: break-word;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <h1>Batch Sign-In With Ethereum</h1>
+  <p>Click to sign a 100000001 "a" message separated by "/" 10 times.</p>
+  <button onclick="signBatch()">Sign 10x</button>
+  <pre id="output"></pre>
+
+  <script>
+    async function signBatch() {
+      const output = document.getElementById("output");
+      output.textContent = "Starting batch signing...\n";
+
+      if (!window.ethereum) {
+        output.textContent = "❌ MetaMask not detected.";
+        return;
+      }
+
+      try {
+        // Request wallet access
+        const accounts = await ethereum.request({ method: "eth_requestAccounts" });
+        const from = accounts[0];
+
+        const signatures = [];
+
+        // Generate 1000 "a" characters separated by "/"
+        const message = Array(1000001).fill("a").join("/");
+
+        // Loop 10 times
+        for (let i = 1; i <= 10; i++) {
+          const sig = await ethereum.request({
+            method: "personal_sign",
+            params: [message, from],
+          });
+
+          signatures.push({ index: i, message, signature: sig });
+
+          output.textContent += `✅ Signed [${i}]: ${message.slice(0, 50)}... (truncated)\nSignature: ${sig}\n\n`;
+        }
+
+        output.textContent += "🎉 Done! Collected 10 signatures.";
+      } catch (err) {
+        output.textContent += "❌ Error: " + err.message;
+      }
+    }
+  </script>
+</body>
+</html>
