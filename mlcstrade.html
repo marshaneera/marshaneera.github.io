@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Trade Order Demo</title>
+
+  <!-- ✅ Make sure ethers loads BEFORE our script -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.7.1/dist/ethers.umd.min.js"></script>
+
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      background: #0a0a0a;
+      color: #fff;
+      gap: 1rem;
+    }
+    button {
+      background: #0078ff;
+      color: white;
+      padding: 12px 24px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button:hover { background: #005fcc; }
+    pre {
+      background: #111;
+      padding: 1rem;
+      border-radius: 8px;
+      width: 80%;
+      max-width: 700px;
+      overflow-x: auto;
+      color: #0ff;
+    }
+  </style>
+</head>
+<body>
+  <button id="connectBtn">Connect Wallet</button>
+  <button id="signOrderBtn" disabled>Sign Trade Order</button>
+  <pre id="output"></pre>
+
+  <!-- ✅ Place our logic AFTER ethers has loaded -->
+  <script>
+    let provider, signer, account;
+    const output = document.getElementById("output");
+    const connectBtn = document.getElementById("connectBtn");
+    const signBtn = document.getElementById("signOrderBtn");
+
+    // ✅ Connect Wallet Button
+    connectBtn.addEventListener("click", async () => {
+      if (!window.ethereum) {
+        alert("❌ No wallet detected. Please install MetaMask.");
+        return;
+      }
+
+      try {
+        provider = new ethers.BrowserProvider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+        signer = await provider.getSigner();
+        account = await signer.getAddress();
+
+        output.textContent = `✅ Connected: ${account}`;
+        signBtn.disabled = false;
+      } catch (err) {
+        console.error(err);
+        alert("❌ Connection failed: " + err.message);
+      }
+    });
+
+    // ✅ Sign Trade Order
+    signBtn.addEventListener("click", async () => {
+      if (!signer) return alert("Please connect your wallet first.");
+
+      const domain = {
+        name: "ZeroEx",
+        version: "1.0.0",
+        chainId: 1,
+        verifyingContract: "0xdef1c0ded9bec7f1a1670819833240f027b25eff",
+      };
+
+      const types = {
+        ERC721Order: [
+          { name: "direction", type: "uint8" },
+          { name: "maker", type: "address" },
+          { name: "taker", type: "address" },
+          { name: "expiry", type: "uint256" },
+          { name: "nonce", type: "uint256" },
+          { name: "erc20Token", type: "address" },
+          { name: "erc20TokenAmount", type: "uint256" },
+          { name: "fees", type: "Fee[]" },
+          { name: "erc721Token", type: "address" },
+          { name: "erc721TokenId", type: "uint256" },
+          { name: "erc721TokenProperties", type: "Property[]" },
+        ],
+        Fee: [
+          { name: "recipient", type: "address" },
+          { name: "amount", type: "uint256" },
+          { name: "feeData", type: "bytes" },
+        ],
+        Property: [
+          { name: "propertyValidator", type: "address" },
+          { name: "propertyData", type: "bytes" },
+        ],
+      };
+
+      const message = {
+        direction: 0,
+        maker: account,
+        taker: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+        expiry: 2524604400,
+        nonce: 123456789,
+        erc20Token: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2", // WETH
+        erc20TokenAmount: "42000000000000",
+        fees: [],
+        erc721Token: "0x8a90CAb2b38dba80c64b7734e58Ee1dB38B8992e", // Doodles NFT
+        erc721TokenId: 2516,
+        erc721TokenProperties: [],
+      };
+
+      try {
+        const signature = await signer.signTypedData(domain, types, message);
+        output.textContent = 
+          "✅ Trade Order Signed Successfully!\n\nSignature:\n" + signature;
+      } catch (err) {
+        console.error(err);
+        output.textContent = "❌ Signing failed: " + err.message;
+      }
+    });
+  </script>
+</body>
+</html>
